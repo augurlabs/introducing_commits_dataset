@@ -1,0 +1,47 @@
+1. Memory safety issues
+    Improper management of memory allocation, access, and deallocation.
+    120 - buffer overflow
+    125 - out-of-bounds released
+    416 - user-after-free
+    Typical impact: System crashes (DoS), Arbitrary Code Execution (RCE), Information leakage
+
+2. Injection flaws
+    Untrusted data is sent to an interpreter as part of a command or query.
+    79 - XSS
+    89 - SQL Injection
+    78 - command Injection
+    Typical impact: Data loss, corruption, unauthorized access, full system takeover
+
+3. Authentication & Access Control Issues
+    Broken identity or permission enforcement.
+    287 - Improper Authentication
+    862 - Missing Authorization
+    522 - Insufficiently Protected Credentials
+    Typical impact: Privilege escalation, Unauthorized data access
+
+4. Cryptographic Failures
+    Weak or misused cryptography.
+    327 - Use of a Broken or Risky Cryptographic Algorithm
+    326 - Inadequate Encryption Strength
+    295 - Improper Certificate Validation
+    Typical impact: Data exposure, Man-in-the-middle attacks
+
+5. Configuration & Deployment Issues
+    Insecure defaults or misconfigurations.
+    16  - Configuration (Category)
+    276 - Incorrect Default Permissions
+    1188 - Insecure Default Initialization of Resource
+    Typical impact: Exposure of internal systems, Privilege abuse
+
+6. Input Validation & Data Handling Errors
+    Failure to properly validate or sanitize data.
+    20  - Improper Input Validation
+    190 - Integer Overflow or Wraparound
+    22  - Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')
+    Typical impact: Data corruption, RCE, File disclosure
+
+7. Race Conditions & Concurrency Issues
+    Timing-related logic flaws.
+    362 - Concurrent Execution using Shared Resource with Improper Synchronization ('Race Condition')
+    367 - Time-of-check Time-of-use (TOCTOU) Race Condition
+    Typical impact: Privilege escalation, Data corruption
