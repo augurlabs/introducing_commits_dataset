@@ -224,8 +224,7 @@ def main():
                 "version": p["version"],
                 "patch": {
                     "commit": p["commit"],
-                    "url": p["url"],
-                    "same_as_highest_version_patch": None
+                    "url": p["url"]
                 }
             })
 

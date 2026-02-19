@@ -38,8 +38,7 @@
         "version": "String. The Django branch or tag name (e.g., Django 4.2).",
         "patch": {
           "commit": "String. The SHA-1 hash of the fix commit.",
-          "url": "String. Direct link to the commit on GitHub.",
-          "same_as_highest_version_patch": "Boolean or null. true if logic matches the highest version's patch."
+          "url": "String. Direct link to the commit on GitHub."
         }
       }
     ]

@@ -1,4 +1,4 @@
 .pytest_cache/
 vulnerabilities/*/envs/
 vulnerabilities/*/logs/
-venv
+*venv

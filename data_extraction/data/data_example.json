@@ -37,24 +37,21 @@
         "version": "Django 6.0",
         "patch": {
           "commit": "15e70cb83e6f7a9a2a2f651f30b28b5cb20febeb",
-          "url": "https://github.com/django/django/commit/15e70cb83e6f7a9a2a2f651f30b28b5cb20febeb",
-          "same_as_highest_version_patch": null
+          "url": "https://github.com/django/django/commit/15e70cb83e6f7a9a2a2f651f30b28b5cb20febeb"
         }
       },
       {
         "version": "Django 5.2",
         "patch": {
           "commit": "e863ee273c6553e9b6fa4960a17acb535851857b",
-          "url": "https://github.com/django/django/commit/e863ee273c6553e9b6fa4960a17acb535851857b",
-          "same_as_highest_version_patch": null
+          "url": "https://github.com/django/django/commit/e863ee273c6553e9b6fa4960a17acb535851857b"
         }
       },
       {
         "version": "Django 4.2",
         "patch": {
           "commit": "90f5b10784ba5bf369caed87640e2b4394ea3314",
-          "url": "https://github.com/django/django/commit/90f5b10784ba5bf369caed87640e2b4394ea3314",
-          "same_as_highest_version_patch": null
+          "url": "https://github.com/django/django/commit/90f5b10784ba5bf369caed87640e2b4394ea3314"
         }
       }
     ]
