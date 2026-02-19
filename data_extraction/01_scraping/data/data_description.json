@@ -39,7 +39,9 @@
         "patch": {
           "commit": "String. The SHA-1 hash of the fix commit.",
           "url": "String. Direct link to the commit on GitHub."
-        }
+        },
+        "supported_python_versions": ["Array of Strings. Python versions supported by this Django release (e.g., ['3.10', '3.11', '3.12'])."],
+        "python_versions_source": "String. The file used to determine the supported Python versions (e.g., 'git show 4.2:setup.cfg')."
       }
     ]
   },

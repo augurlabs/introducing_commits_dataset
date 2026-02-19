@@ -38,21 +38,27 @@
         "patch": {
           "commit": "15e70cb83e6f7a9a2a2f651f30b28b5cb20febeb",
           "url": "https://github.com/django/django/commit/15e70cb83e6f7a9a2a2f651f30b28b5cb20febeb"
-        }
+        },
+        "supported_python_versions": ["3.12", "3.13", "3.14"],
+        "python_versions_source": "git show 6.0:pyproject.toml"
       },
       {
         "version": "Django 5.2",
         "patch": {
           "commit": "e863ee273c6553e9b6fa4960a17acb535851857b",
           "url": "https://github.com/django/django/commit/e863ee273c6553e9b6fa4960a17acb535851857b"
-        }
+        },
+        "supported_python_versions": ["3.10", "3.11", "3.12", "3.13"],
+        "python_versions_source": "git show 5.2:pyproject.toml"
       },
       {
         "version": "Django 4.2",
         "patch": {
           "commit": "90f5b10784ba5bf369caed87640e2b4394ea3314",
           "url": "https://github.com/django/django/commit/90f5b10784ba5bf369caed87640e2b4394ea3314"
-        }
+        },
+        "supported_python_versions": ["3.8", "3.9", "3.10", "3.11"],
+        "python_versions_source": "git show 4.2:setup.cfg"
       }
     ]
   },

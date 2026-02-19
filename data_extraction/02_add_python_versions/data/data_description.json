@@ -1,0 +1,51 @@
+{
+  "cve": {
+    "id": "String. The canonical CVE identifier (e.g., CVE-2025-13473).",
+    "url": "String. Link to the official CVE record on cve.org.",
+    "description": "String. Technical description provided by the CVE numbering authority.",
+    "published_at": "String (ISO 8601). Timestamp of first publication by the CNA.",
+    "updated_at": "String (ISO 8601). Timestamp of the last metadata update by the CNA."
+  },
+  "ghsa": {
+    "id": "String. The GitHub Security Advisory identifier (e.g., GHSA-xxxx-xxxx-xxxx).",
+    "url": "String. Direct link to the advisory on GitHub.",
+    "summary": "String. Concise title of the vulnerability from GitHub.",
+    "description": "String (Markdown). Detailed impact and remediation description from community review.",
+    "severity": "String. Qualitative rating (Critical, High, Medium, Low).",
+    "cvss": {
+      "score": "Number. Numerical CVSS base score.",
+      "vector": "String. The CVSS vector string (e.g., CVSS:3.1/...).",
+      "severity": "String. Severity rating associated with the score."
+    },
+    "vulnerable_ranges": [
+      {
+        "range": "String. Version range affected (e.g., >= 5.2a1, < 5.2.11).",
+        "fixed_in": "String. The first version that includes the fix."
+      }
+    ],
+    "published_at": "String (ISO 8601). Timestamp when published on GitHub.",
+    "updated_at": "String (ISO 8601). Timestamp of last review on GitHub."
+  },
+  "cwe": {
+    "id": "String. The CWE identifier (e.g., CWE-89).",
+    "name": "String. Full name of the Common Weakness Enumeration category."
+  },
+  "django": {
+    "url": "String. Link to the specific Django security release blog post.",
+    "description": "String. The specific detailed text describing this issue from the Django release notes.",
+    "fixed_versions": [
+      {
+        "version": "String. The Django branch or tag name (e.g., Django 4.2).",
+        "patch": {
+          "commit": "String. The SHA-1 hash of the fix commit.",
+          "url": "String. Direct link to the commit on GitHub."
+        },
+        "supported_python_versions": ["Array of Strings. Python versions supported by this Django release (e.g., ['3.10', '3.11', '3.12'])."],
+        "python_versions_source": "String. The file used to determine the supported Python versions (e.g., 'git show 4.2:setup.cfg')."
+      }
+    ]
+  },
+  "references": [
+    "Array of Strings. Deduplicated list of all unique external URLs related to this CVE."
+  ]
+}

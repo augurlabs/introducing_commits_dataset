@@ -9,7 +9,7 @@ import sys
 import time
 
 # Configure logging
-log_file = "../logs/scrape.log"
+log_file = os.path.join(os.path.dirname(__file__), "logs", "scrape.log")
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -122,7 +122,7 @@ def scrape_security_archive():
         return []
 
 def main():
-    data_file = "../data/original_full_datatest.jsonl"
+    data_file = os.path.join(os.path.dirname(__file__), "data", "original_full_datatest.jsonl")
     fetch_all_django_ghsas()
     archive_entries = scrape_security_archive()
     logger.info(f"Found {len(archive_entries)} CVEs in Django archive.")
