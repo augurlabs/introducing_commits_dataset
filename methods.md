@@ -54,6 +54,19 @@ In this case, the **Sink** is the logical path that lacks the "Expensive Burden.
 *   **Sink Line:** `except UserModel.DoesNotExist: return None`
 *   **Guard Logic:** `UserModel().set_password("")` (Added to force hashing on the early return path).
 
+### 2.3 Finding the Introducing Commit (The Backwards Trace)
+To find the commit that introduced the vulnerability (BIC), trace the origin of the "Sink" logic.
+
+1. **Identify the Sink Code:** In `modwsgi.py`, the sink is the early return in the `except UserModel.DoesNotExist` block.
+2. **Execute Blame:** Run `git blame` on the vulnerable file to identify the commit for that specific line.
+   ```bash
+   git blame -L 20,25 django/contrib/auth/handlers/modwsgi.py
+   ```
+3. **Verify the "Birth" vs. "Refactor":**
+   - If the commit only changed imports or whitespace, it's a **Refactor**. Blame the parent of that commit.
+   - If the commit introduced the `check_password` function or the `except` block, it is the **Candidate BIC**.
+4. **Contextual Analysis:** Check if the commit was a backport or a refactor of existing code from another file (e.g., standard auth views).
+
 ---
 
 ## 3. Phase 3: Verification Synthesis (The Probe)
