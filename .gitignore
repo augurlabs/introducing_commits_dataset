@@ -1,4 +1,7 @@
 .pytest_cache/
 vulnerabilities/*/envs/
 vulnerabilities/*/logs/
-*venv
+django_venvs
+.venv
+venv
+__pycache__

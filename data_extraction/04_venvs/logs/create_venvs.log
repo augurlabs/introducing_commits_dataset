@@ -1,0 +1,322 @@
+2026-02-19 13:06:56,428 [INFO] Resolved 22 Python minor versions from pyenv
+2026-02-19 13:06:56,429 [INFO]   Added Python 2.7 as practical fallback for Django 0.90
+2026-02-19 13:06:56,429 [INFO]   Added Python 2.7 as practical fallback for Django 0.91
+2026-02-19 13:06:56,429 [INFO]   Added Python 2.7 as practical fallback for Django 0.95
+2026-02-19 13:06:56,429 [INFO]   Added Python 2.7 as practical fallback for Django 0.96
+2026-02-19 13:06:56,429 [INFO]   Added Python 2.7 as practical fallback for Django 1.0
+2026-02-19 13:06:56,429 [INFO]   Added Python 2.7 as practical fallback for Django 1.1
+2026-02-19 13:06:56,432 [INFO] Creating venvs for 29 Django versions...
+2026-02-19 13:06:56,432 [INFO] Venvs directory: /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs
+2026-02-19 13:06:56,433 [INFO] 
+============================================================
+2026-02-19 13:06:56,433 [INFO] Django 0.90 (Python candidates: ['2.7', '2.3'])
+2026-02-19 13:06:56,433 [INFO] ============================================================
+2026-02-19 13:06:56,433 [INFO]   Trying Python 2.7 for Django 0.90...
+2026-02-19 13:06:56,446 [INFO]   Python 2.7.18 already installed
+2026-02-19 13:06:56,447 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-0.90 with /home/kaxada/.pyenv/versions/2.7.18/bin/python...
+2026-02-19 13:06:57,900 [INFO]   Installing Django>=0.90,<0.91 into venv...
+2026-02-19 13:06:58,423 [WARNING]   PyPI install of Django>=0.90,<0.91 failed, trying local repo tag...
+2026-02-19 13:06:58,428 [ERROR]   Local repo install at tag 0.90 also failed: Command '['git', 'checkout', '0.90']' returned non-zero exit status 1.
+2026-02-19 13:06:58,432 [ERROR]   Direct copy install also failed: Command '['git', 'checkout', '0.90']' returned non-zero exit status 1.
+2026-02-19 13:06:58,432 [WARNING]   Python 2.7.18 didn't work for Django 0.90, trying next...
+2026-02-19 13:06:58,446 [INFO]   Trying Python 2.3 for Django 0.90...
+2026-02-19 13:06:58,461 [INFO]   Python 2.3.7 already installed
+2026-02-19 13:06:58,461 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-0.90 with /home/kaxada/.pyenv/versions/2.3.7/bin/python...
+2026-02-19 13:06:58,465 [INFO]   Installing virtualenv for /home/kaxada/.pyenv/versions/2.3.7/bin/python...
+2026-02-19 13:06:58,468 [WARNING]   Could not install virtualenv for /home/kaxada/.pyenv/versions/2.3.7/bin/python
+2026-02-19 13:06:58,468 [WARNING]   No virtualenv available for Python 2.3.7
+2026-02-19 13:06:58,468 [ERROR]   FAILED: Could not create venv for Django 0.90 with any of ['2.7', '2.3']
+2026-02-19 13:06:58,468 [INFO] 
+============================================================
+2026-02-19 13:06:58,469 [INFO] Django 0.91 (Python candidates: ['2.7', '2.3'])
+2026-02-19 13:06:58,469 [INFO] ============================================================
+2026-02-19 13:06:58,469 [INFO]   Trying Python 2.7 for Django 0.91...
+2026-02-19 13:06:58,482 [INFO]   Python 2.7.18 already installed
+2026-02-19 13:06:58,483 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-0.91 with /home/kaxada/.pyenv/versions/2.7.18/bin/python...
+2026-02-19 13:06:59,767 [INFO]   Installing Django>=0.91,<0.92 into venv...
+2026-02-19 13:07:00,289 [WARNING]   PyPI install of Django>=0.91,<0.92 failed, trying local repo tag...
+2026-02-19 13:07:00,294 [ERROR]   Local repo install at tag 0.91 also failed: Command '['git', 'checkout', '0.91']' returned non-zero exit status 1.
+2026-02-19 13:07:00,298 [ERROR]   Direct copy install also failed: Command '['git', 'checkout', '0.91']' returned non-zero exit status 1.
+2026-02-19 13:07:00,298 [WARNING]   Python 2.7.18 didn't work for Django 0.91, trying next...
+2026-02-19 13:07:00,313 [INFO]   Trying Python 2.3 for Django 0.91...
+2026-02-19 13:07:00,328 [INFO]   Python 2.3.7 already installed
+2026-02-19 13:07:00,329 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-0.91 with /home/kaxada/.pyenv/versions/2.3.7/bin/python...
+2026-02-19 13:07:00,333 [INFO]   Installing virtualenv for /home/kaxada/.pyenv/versions/2.3.7/bin/python...
+2026-02-19 13:07:00,336 [WARNING]   Could not install virtualenv for /home/kaxada/.pyenv/versions/2.3.7/bin/python
+2026-02-19 13:07:00,336 [WARNING]   No virtualenv available for Python 2.3.7
+2026-02-19 13:07:00,336 [ERROR]   FAILED: Could not create venv for Django 0.91 with any of ['2.7', '2.3']
+2026-02-19 13:07:00,336 [INFO] 
+============================================================
+2026-02-19 13:07:00,336 [INFO] Django 0.95 (Python candidates: ['2.7', '2.4', '2.3'])
+2026-02-19 13:07:00,336 [INFO] ============================================================
+2026-02-19 13:07:00,337 [INFO]   Trying Python 2.7 for Django 0.95...
+2026-02-19 13:07:00,350 [INFO]   Python 2.7.18 already installed
+2026-02-19 13:07:00,350 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-0.95 with /home/kaxada/.pyenv/versions/2.7.18/bin/python...
+2026-02-19 13:07:01,660 [INFO]   Installing Django>=0.95,<0.96 into venv...
+2026-02-19 13:07:02,222 [WARNING]   PyPI install of Django>=0.95,<0.96 failed, trying local repo tag...
+2026-02-19 13:07:02,226 [ERROR]   Local repo install at tag 0.95 also failed: Command '['git', 'checkout', '0.95']' returned non-zero exit status 1.
+2026-02-19 13:07:02,230 [ERROR]   Direct copy install also failed: Command '['git', 'checkout', '0.95']' returned non-zero exit status 1.
+2026-02-19 13:07:02,231 [WARNING]   Python 2.7.18 didn't work for Django 0.95, trying next...
+2026-02-19 13:07:02,244 [INFO]   Trying Python 2.4 for Django 0.95...
+2026-02-19 13:07:02,257 [INFO]   Python 2.4.6 already installed
+2026-02-19 13:07:02,258 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-0.95 with /home/kaxada/.pyenv/versions/2.4.6/bin/python...
+2026-02-19 13:07:02,263 [INFO]   Installing virtualenv for /home/kaxada/.pyenv/versions/2.4.6/bin/python...
+2026-02-19 13:07:02,323 [WARNING]   Could not install virtualenv for /home/kaxada/.pyenv/versions/2.4.6/bin/python
+2026-02-19 13:07:02,323 [WARNING]   No virtualenv available for Python 2.4.6
+2026-02-19 13:07:02,323 [INFO]   Trying Python 2.3 for Django 0.95...
+2026-02-19 13:07:02,337 [INFO]   Python 2.3.7 already installed
+2026-02-19 13:07:02,338 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-0.95 with /home/kaxada/.pyenv/versions/2.3.7/bin/python...
+2026-02-19 13:07:02,342 [INFO]   Installing virtualenv for /home/kaxada/.pyenv/versions/2.3.7/bin/python...
+2026-02-19 13:07:02,344 [WARNING]   Could not install virtualenv for /home/kaxada/.pyenv/versions/2.3.7/bin/python
+2026-02-19 13:07:02,344 [WARNING]   No virtualenv available for Python 2.3.7
+2026-02-19 13:07:02,344 [ERROR]   FAILED: Could not create venv for Django 0.95 with any of ['2.7', '2.4', '2.3']
+2026-02-19 13:07:02,345 [INFO] 
+============================================================
+2026-02-19 13:07:02,345 [INFO] Django 0.96 (Python candidates: ['2.7', '2.5', '2.4', '2.3'])
+2026-02-19 13:07:02,345 [INFO] ============================================================
+2026-02-19 13:07:02,345 [INFO]   Trying Python 2.7 for Django 0.96...
+2026-02-19 13:07:02,358 [INFO]   Python 2.7.18 already installed
+2026-02-19 13:07:02,359 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-0.96 with /home/kaxada/.pyenv/versions/2.7.18/bin/python...
+2026-02-19 13:07:03,837 [INFO]   Installing Django>=0.96,<0.97 into venv...
+2026-02-19 13:07:04,357 [WARNING]   PyPI install of Django>=0.96,<0.97 failed, trying local repo tag...
+2026-02-19 13:07:04,361 [ERROR]   Local repo install at tag 0.96 also failed: Command '['git', 'checkout', '0.96']' returned non-zero exit status 1.
+2026-02-19 13:07:04,365 [ERROR]   Direct copy install also failed: Command '['git', 'checkout', '0.96']' returned non-zero exit status 1.
+2026-02-19 13:07:04,366 [WARNING]   Python 2.7.18 didn't work for Django 0.96, trying next...
+2026-02-19 13:07:04,378 [INFO]   Trying Python 2.5 for Django 0.96...
+2026-02-19 13:07:04,393 [INFO]   Python 2.5.6 already installed
+2026-02-19 13:07:04,394 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-0.96 with /home/kaxada/.pyenv/versions/2.5.6/bin/python...
+2026-02-19 13:07:04,399 [INFO]   Installing virtualenv for /home/kaxada/.pyenv/versions/2.5.6/bin/python...
+2026-02-19 13:07:04,487 [WARNING]   Could not install virtualenv for /home/kaxada/.pyenv/versions/2.5.6/bin/python
+2026-02-19 13:07:04,488 [WARNING]   No virtualenv available for Python 2.5.6
+2026-02-19 13:07:04,488 [INFO]   Trying Python 2.4 for Django 0.96...
+2026-02-19 13:07:04,501 [INFO]   Python 2.4.6 already installed
+2026-02-19 13:07:04,501 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-0.96 with /home/kaxada/.pyenv/versions/2.4.6/bin/python...
+2026-02-19 13:07:04,506 [INFO]   Installing virtualenv for /home/kaxada/.pyenv/versions/2.4.6/bin/python...
+2026-02-19 13:07:04,564 [WARNING]   Could not install virtualenv for /home/kaxada/.pyenv/versions/2.4.6/bin/python
+2026-02-19 13:07:04,564 [WARNING]   No virtualenv available for Python 2.4.6
+2026-02-19 13:07:04,564 [INFO]   Trying Python 2.3 for Django 0.96...
+2026-02-19 13:07:04,577 [INFO]   Python 2.3.7 already installed
+2026-02-19 13:07:04,578 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-0.96 with /home/kaxada/.pyenv/versions/2.3.7/bin/python...
+2026-02-19 13:07:04,582 [INFO]   Installing virtualenv for /home/kaxada/.pyenv/versions/2.3.7/bin/python...
+2026-02-19 13:07:04,585 [WARNING]   Could not install virtualenv for /home/kaxada/.pyenv/versions/2.3.7/bin/python
+2026-02-19 13:07:04,585 [WARNING]   No virtualenv available for Python 2.3.7
+2026-02-19 13:07:04,585 [ERROR]   FAILED: Could not create venv for Django 0.96 with any of ['2.7', '2.5', '2.4', '2.3']
+2026-02-19 13:07:04,585 [INFO] 
+============================================================
+2026-02-19 13:07:04,585 [INFO] Django 1.0 (Python candidates: ['2.7', '2.6', '2.5', '2.4', '2.3'])
+2026-02-19 13:07:04,585 [INFO] ============================================================
+2026-02-19 13:07:04,585 [INFO]   Trying Python 2.7 for Django 1.0...
+2026-02-19 13:07:04,598 [INFO]   Python 2.7.18 already installed
+2026-02-19 13:07:04,599 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-1.0 with /home/kaxada/.pyenv/versions/2.7.18/bin/python...
+2026-02-19 13:07:05,931 [INFO]   Installing Django>=1.0,<1.1 into venv...
+2026-02-19 13:07:06,445 [WARNING]   PyPI install of Django>=1.0,<1.1 failed, trying local repo tag...
+2026-02-19 13:07:07,611 [INFO]   SUCCESS: django-1.0 venv created (Python 2.7.18, Django 1.0-final-SVN-unknown, via virtualenv)
+2026-02-19 13:07:07,611 [INFO] 
+============================================================
+2026-02-19 13:07:07,611 [INFO] Django 1.1 (Python candidates: ['2.7', '2.6', '2.5', '2.4', '2.3'])
+2026-02-19 13:07:07,611 [INFO] ============================================================
+2026-02-19 13:07:07,611 [INFO]   Trying Python 2.7 for Django 1.1...
+2026-02-19 13:07:07,627 [INFO]   Python 2.7.18 already installed
+2026-02-19 13:07:07,627 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-1.1 with /home/kaxada/.pyenv/versions/2.7.18/bin/python...
+2026-02-19 13:07:09,092 [INFO]   Installing Django>=1.1,<1.2 into venv...
+2026-02-19 13:07:12,693 [INFO]   SUCCESS: django-1.1 venv created (Python 2.7.18, Django 1.1.4, via virtualenv)
+2026-02-19 13:07:12,693 [INFO] 
+============================================================
+2026-02-19 13:07:12,693 [INFO] Django 1.2 (Python candidates: ['2.7', '2.6', '2.5', '2.4'])
+2026-02-19 13:07:12,693 [INFO] ============================================================
+2026-02-19 13:07:12,694 [INFO]   Trying Python 2.7 for Django 1.2...
+2026-02-19 13:07:12,712 [INFO]   Python 2.7.18 already installed
+2026-02-19 13:07:12,712 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-1.2 with /home/kaxada/.pyenv/versions/2.7.18/bin/python...
+2026-02-19 13:07:14,234 [INFO]   Installing Django>=1.2,<1.3 into venv...
+2026-02-19 13:07:18,102 [INFO]   SUCCESS: django-1.2 venv created (Python 2.7.18, Django 1.2.7, via virtualenv)
+2026-02-19 13:07:18,102 [INFO] 
+============================================================
+2026-02-19 13:07:18,102 [INFO] Django 1.3 (Python candidates: ['2.7', '2.6', '2.5', '2.4'])
+2026-02-19 13:07:18,102 [INFO] ============================================================
+2026-02-19 13:07:18,102 [INFO]   Trying Python 2.7 for Django 1.3...
+2026-02-19 13:07:18,116 [INFO]   Python 2.7.18 already installed
+2026-02-19 13:07:18,116 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-1.3 with /home/kaxada/.pyenv/versions/2.7.18/bin/python...
+2026-02-19 13:07:19,408 [INFO]   Installing Django>=1.3,<1.4 into venv...
+2026-02-19 13:07:25,649 [INFO]   SUCCESS: django-1.3 venv created (Python 2.7.18, Django 1.3.7, via virtualenv)
+2026-02-19 13:07:25,649 [INFO] 
+============================================================
+2026-02-19 13:07:25,649 [INFO] Django 1.4 (Python candidates: ['2.7', '2.6', '2.5'])
+2026-02-19 13:07:25,649 [INFO] ============================================================
+2026-02-19 13:07:25,650 [INFO]   Trying Python 2.7 for Django 1.4...
+2026-02-19 13:07:25,664 [INFO]   Python 2.7.18 already installed
+2026-02-19 13:07:25,664 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-1.4 with /home/kaxada/.pyenv/versions/2.7.18/bin/python...
+2026-02-19 13:07:26,704 [INFO]   Installing Django>=1.4,<1.5 into venv...
+2026-02-19 13:07:31,186 [INFO]   SUCCESS: django-1.4 venv created (Python 2.7.18, Django 1.4.22, via virtualenv)
+2026-02-19 13:07:31,186 [INFO] 
+============================================================
+2026-02-19 13:07:31,186 [INFO] Django 1.5 (Python candidates: ['3.3', '3.2', '2.7', '2.6'])
+2026-02-19 13:07:31,186 [INFO] ============================================================
+2026-02-19 13:07:31,187 [INFO]   Trying Python 3.3 for Django 1.5...
+2026-02-19 13:07:31,200 [WARNING]   Python 3.3.7 not installed and --skip-install-python set
+2026-02-19 13:07:31,200 [INFO]   Trying Python 3.2 for Django 1.5...
+2026-02-19 13:07:31,214 [WARNING]   Python 3.2.6 not installed and --skip-install-python set
+2026-02-19 13:07:31,214 [INFO]   Trying Python 2.7 for Django 1.5...
+2026-02-19 13:07:31,228 [INFO]   Python 2.7.18 already installed
+2026-02-19 13:07:31,228 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-1.5 with /home/kaxada/.pyenv/versions/2.7.18/bin/python...
+2026-02-19 13:07:32,556 [INFO]   Installing Django>=1.5,<1.6 into venv...
+2026-02-19 13:07:35,021 [INFO]   SUCCESS: django-1.5 venv created (Python 2.7.18, Django 1.5.12, via virtualenv)
+2026-02-19 13:07:35,029 [INFO] 
+============================================================
+2026-02-19 13:07:35,029 [INFO] Django 1.6 (Python candidates: ['3.3', '3.2', '2.7', '2.6'])
+2026-02-19 13:07:35,030 [INFO] ============================================================
+2026-02-19 13:07:35,030 [INFO]   Trying Python 3.3 for Django 1.6...
+2026-02-19 13:07:35,044 [WARNING]   Python 3.3.7 not installed and --skip-install-python set
+2026-02-19 13:07:35,044 [INFO]   Trying Python 3.2 for Django 1.6...
+2026-02-19 13:07:35,058 [WARNING]   Python 3.2.6 not installed and --skip-install-python set
+2026-02-19 13:07:35,058 [INFO]   Trying Python 2.7 for Django 1.6...
+2026-02-19 13:07:35,072 [INFO]   Python 2.7.18 already installed
+2026-02-19 13:07:35,072 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-1.6 with /home/kaxada/.pyenv/versions/2.7.18/bin/python...
+2026-02-19 13:07:36,360 [INFO]   Installing Django>=1.6,<1.7 into venv...
+2026-02-19 13:07:39,331 [INFO]   SUCCESS: django-1.6 venv created (Python 2.7.18, Django 1.6.11, via virtualenv)
+2026-02-19 13:07:39,332 [INFO] 
+============================================================
+2026-02-19 13:07:39,332 [INFO] Django 1.7 (Python candidates: ['3.4', '3.3', '3.2', '2.7'])
+2026-02-19 13:07:39,332 [INFO] ============================================================
+2026-02-19 13:07:39,332 [INFO]   Trying Python 3.4 for Django 1.7...
+2026-02-19 13:07:39,346 [WARNING]   Python 3.4.10 not installed and --skip-install-python set
+2026-02-19 13:07:39,346 [INFO]   Trying Python 3.3 for Django 1.7...
+2026-02-19 13:07:39,360 [WARNING]   Python 3.3.7 not installed and --skip-install-python set
+2026-02-19 13:07:39,360 [INFO]   Trying Python 3.2 for Django 1.7...
+2026-02-19 13:07:39,373 [WARNING]   Python 3.2.6 not installed and --skip-install-python set
+2026-02-19 13:07:39,373 [INFO]   Trying Python 2.7 for Django 1.7...
+2026-02-19 13:07:39,388 [INFO]   Python 2.7.18 already installed
+2026-02-19 13:07:39,388 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-1.7 with /home/kaxada/.pyenv/versions/2.7.18/bin/python...
+2026-02-19 13:07:40,683 [INFO]   Installing Django>=1.7,<1.8 into venv...
+2026-02-19 13:07:43,291 [INFO]   SUCCESS: django-1.7 venv created (Python 2.7.18, Django 1.7.11, via virtualenv)
+2026-02-19 13:07:43,292 [INFO] 
+============================================================
+2026-02-19 13:07:43,292 [INFO] Django 1.8 (Python candidates: ['3.4', '3.3', '3.2', '2.7'])
+2026-02-19 13:07:43,292 [INFO] ============================================================
+2026-02-19 13:07:43,292 [INFO]   Trying Python 3.4 for Django 1.8...
+2026-02-19 13:07:43,307 [WARNING]   Python 3.4.10 not installed and --skip-install-python set
+2026-02-19 13:07:43,307 [INFO]   Trying Python 3.3 for Django 1.8...
+2026-02-19 13:07:43,321 [WARNING]   Python 3.3.7 not installed and --skip-install-python set
+2026-02-19 13:07:43,321 [INFO]   Trying Python 3.2 for Django 1.8...
+2026-02-19 13:07:43,334 [WARNING]   Python 3.2.6 not installed and --skip-install-python set
+2026-02-19 13:07:43,334 [INFO]   Trying Python 2.7 for Django 1.8...
+2026-02-19 13:07:43,348 [INFO]   Python 2.7.18 already installed
+2026-02-19 13:07:43,348 [INFO]   Creating venv at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-1.8 with /home/kaxada/.pyenv/versions/2.7.18/bin/python...
+2026-02-19 13:07:44,368 [INFO]   Installing Django>=1.8,<1.9 into venv...
+2026-02-19 13:07:46,104 [INFO]   SUCCESS: django-1.8 venv created (Python 2.7.18, Django 1.8.19, via virtualenv)
+2026-02-19 13:07:46,105 [INFO] 
+============================================================
+2026-02-19 13:07:46,105 [INFO] Django 1.9 (Python candidates: ['3.5', '3.4', '2.7'])
+2026-02-19 13:07:46,105 [INFO] ============================================================
+2026-02-19 13:07:46,105 [INFO]   Venv already exists at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-1.9, skipping
+2026-02-19 13:07:46,105 [INFO] 
+============================================================
+2026-02-19 13:07:46,105 [INFO] Django 1.10 (Python candidates: ['3.5', '3.4', '2.7'])
+2026-02-19 13:07:46,105 [INFO] ============================================================
+2026-02-19 13:07:46,106 [INFO]   Venv already exists at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-1.10, skipping
+2026-02-19 13:07:46,106 [INFO] 
+============================================================
+2026-02-19 13:07:46,106 [INFO] Django 1.11 (Python candidates: ['3.6', '3.5', '3.4', '2.7'])
+2026-02-19 13:07:46,106 [INFO] ============================================================
+2026-02-19 13:07:46,106 [INFO]   Venv already exists at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-1.11, skipping
+2026-02-19 13:07:46,106 [INFO] 
+============================================================
+2026-02-19 13:07:46,106 [INFO] Django 2.0 (Python candidates: ['3.6', '3.5', '3.4'])
+2026-02-19 13:07:46,106 [INFO] ============================================================
+2026-02-19 13:07:46,106 [INFO]   Venv already exists at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-2.0, skipping
+2026-02-19 13:07:46,106 [INFO] 
+============================================================
+2026-02-19 13:07:46,106 [INFO] Django 2.1 (Python candidates: ['3.7', '3.6', '3.5'])
+2026-02-19 13:07:46,106 [INFO] ============================================================
+2026-02-19 13:07:46,106 [INFO]   Venv already exists at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-2.1, skipping
+2026-02-19 13:07:46,106 [INFO] 
+============================================================
+2026-02-19 13:07:46,106 [INFO] Django 2.2 (Python candidates: ['3.7', '3.6', '3.5'])
+2026-02-19 13:07:46,106 [INFO] ============================================================
+2026-02-19 13:07:46,106 [INFO]   Venv already exists at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-2.2, skipping
+2026-02-19 13:07:46,106 [INFO] 
+============================================================
+2026-02-19 13:07:46,106 [INFO] Django 3.0 (Python candidates: ['3.8', '3.7', '3.6'])
+2026-02-19 13:07:46,106 [INFO] ============================================================
+2026-02-19 13:07:46,106 [INFO]   Venv already exists at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-3.0, skipping
+2026-02-19 13:07:46,106 [INFO] 
+============================================================
+2026-02-19 13:07:46,106 [INFO] Django 3.1 (Python candidates: ['3.8', '3.7', '3.6'])
+2026-02-19 13:07:46,106 [INFO] ============================================================
+2026-02-19 13:07:46,107 [INFO]   Venv already exists at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-3.1, skipping
+2026-02-19 13:07:46,107 [INFO] 
+============================================================
+2026-02-19 13:07:46,107 [INFO] Django 3.2 (Python candidates: ['3.9', '3.8', '3.7', '3.6'])
+2026-02-19 13:07:46,107 [INFO] ============================================================
+2026-02-19 13:07:46,107 [INFO]   Venv already exists at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-3.2, skipping
+2026-02-19 13:07:46,107 [INFO] 
+============================================================
+2026-02-19 13:07:46,107 [INFO] Django 4.0 (Python candidates: ['3.10', '3.9', '3.8'])
+2026-02-19 13:07:46,107 [INFO] ============================================================
+2026-02-19 13:07:46,107 [INFO]   Venv already exists at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-4.0, skipping
+2026-02-19 13:07:46,107 [INFO] 
+============================================================
+2026-02-19 13:07:46,107 [INFO] Django 4.1 (Python candidates: ['3.10', '3.9', '3.8'])
+2026-02-19 13:07:46,107 [INFO] ============================================================
+2026-02-19 13:07:46,107 [INFO]   Venv already exists at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-4.1, skipping
+2026-02-19 13:07:46,107 [INFO] 
+============================================================
+2026-02-19 13:07:46,107 [INFO] Django 4.2 (Python candidates: ['3.11', '3.10', '3.9', '3.8'])
+2026-02-19 13:07:46,107 [INFO] ============================================================
+2026-02-19 13:07:46,107 [INFO]   Venv already exists at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-4.2, skipping
+2026-02-19 13:07:46,107 [INFO] 
+============================================================
+2026-02-19 13:07:46,107 [INFO] Django 5.0 (Python candidates: ['3.12', '3.11', '3.10'])
+2026-02-19 13:07:46,107 [INFO] ============================================================
+2026-02-19 13:07:46,107 [INFO]   Venv already exists at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-5.0, skipping
+2026-02-19 13:07:46,107 [INFO] 
+============================================================
+2026-02-19 13:07:46,107 [INFO] Django 5.1 (Python candidates: ['3.12', '3.11', '3.10'])
+2026-02-19 13:07:46,107 [INFO] ============================================================
+2026-02-19 13:07:46,108 [INFO]   Venv already exists at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-5.1, skipping
+2026-02-19 13:07:46,108 [INFO] 
+============================================================
+2026-02-19 13:07:46,108 [INFO] Django 5.2 (Python candidates: ['3.13', '3.12', '3.11', '3.10'])
+2026-02-19 13:07:46,108 [INFO] ============================================================
+2026-02-19 13:07:46,108 [INFO]   Venv already exists at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-5.2, skipping
+2026-02-19 13:07:46,108 [INFO] 
+============================================================
+2026-02-19 13:07:46,108 [INFO] Django 6.0 (Python candidates: ['3.14', '3.13', '3.12'])
+2026-02-19 13:07:46,108 [INFO] ============================================================
+2026-02-19 13:07:46,108 [INFO]   Venv already exists at /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/django-6.0, skipping
+2026-02-19 13:07:46,108 [INFO] 
+============================================================
+2026-02-19 13:07:46,108 [INFO] SUMMARY
+2026-02-19 13:07:46,108 [INFO] ============================================================
+2026-02-19 13:07:46,108 [INFO] Success: 25/29
+2026-02-19 13:07:46,108 [INFO]   ✓ Django 1.0
+2026-02-19 13:07:46,108 [INFO]   ✓ Django 1.1
+2026-02-19 13:07:46,108 [INFO]   ✓ Django 1.2
+2026-02-19 13:07:46,108 [INFO]   ✓ Django 1.3
+2026-02-19 13:07:46,108 [INFO]   ✓ Django 1.4
+2026-02-19 13:07:46,108 [INFO]   ✓ Django 1.5
+2026-02-19 13:07:46,108 [INFO]   ✓ Django 1.6
+2026-02-19 13:07:46,108 [INFO]   ✓ Django 1.7
+2026-02-19 13:07:46,108 [INFO]   ✓ Django 1.8
+2026-02-19 13:07:46,108 [INFO]   ✓ Django 1.9
+2026-02-19 13:07:46,108 [INFO]   ✓ Django 1.10
+2026-02-19 13:07:46,108 [INFO]   ✓ Django 1.11
+2026-02-19 13:07:46,109 [INFO]   ✓ Django 2.0
+2026-02-19 13:07:46,109 [INFO]   ✓ Django 2.1
+2026-02-19 13:07:46,109 [INFO]   ✓ Django 2.2
+2026-02-19 13:07:46,109 [INFO]   ✓ Django 3.0
+2026-02-19 13:07:46,109 [INFO]   ✓ Django 3.1
+2026-02-19 13:07:46,109 [INFO]   ✓ Django 3.2
+2026-02-19 13:07:46,109 [INFO]   ✓ Django 4.0
+2026-02-19 13:07:46,109 [INFO]   ✓ Django 4.1
+2026-02-19 13:07:46,109 [INFO]   ✓ Django 4.2
+2026-02-19 13:07:46,109 [INFO]   ✓ Django 5.0
+2026-02-19 13:07:46,109 [INFO]   ✓ Django 5.1
+2026-02-19 13:07:46,109 [INFO]   ✓ Django 5.2
+2026-02-19 13:07:46,109 [INFO]   ✓ Django 6.0
+2026-02-19 13:07:46,109 [INFO] Failed:  4/29
+2026-02-19 13:07:46,109 [INFO]   ✗ Django 0.90
+2026-02-19 13:07:46,109 [INFO]   ✗ Django 0.91
+2026-02-19 13:07:46,109 [INFO]   ✗ Django 0.95
+2026-02-19 13:07:46,109 [INFO]   ✗ Django 0.96
+2026-02-19 13:07:46,109 [INFO] 
+Summary written to /home/kaxada/projects/osssec/introducing_commits_dataset/data_extraction/03_venvs/venvs/summary.json

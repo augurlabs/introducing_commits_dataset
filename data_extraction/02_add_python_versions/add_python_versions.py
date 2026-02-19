@@ -1,14 +1,3 @@
-"""
-Enrich the dataset with supported Python versions for each Django fixed version.
-
-Reads the original JSONL dataset, resolves the supported Python versions for
-each Django release tag from the repo's packaging metadata (pyproject.toml,
-setup.cfg, or setup.py), and writes an enriched copy.
-
-Usage:
-    python enrich_python_versions.py
-"""
-
 import json
 import re
 import subprocess
@@ -25,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 REPO_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "repositories", "django")
 INPUT_FILE = os.path.join(os.path.dirname(__file__), "..", "scraping", "data", "original_full_datatest.jsonl")
-OUTPUT_FILE = os.path.join(os.path.dirname(__file__), "data", "enriched_datatest.jsonl")
+OUTPUT_FILE = os.path.join(os.path.dirname(__file__), "data", "dataset_with_py_versions.jsonl")
 
 # Early Django releases had no Python version classifiers in their packaging files.
 # These are sourced from the official Django FAQ / release notes:
