@@ -1,5 +1,7 @@
 # README (only for scrape.py and patch_comparison.py)
 
+## Code created with assistance from ChatGPT 5.2
+
 ## Running the Scripts
 
 ---
