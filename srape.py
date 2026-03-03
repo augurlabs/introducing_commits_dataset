@@ -60,17 +60,13 @@ Recommended Steps for Implementation:
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
-import logging
 import random
 import re
-import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
-from pathlib import Path
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
@@ -79,184 +75,76 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 
 
-BASE = "https://docs.djangoproject.com"
-SECURITY_INDEX_URL = f"{BASE}/en/dev/releases/security/"
+# Django security archive (by default we’ll use /en/stable/ which redirects to a specific version)
+DEFAULT_BASE_URL = "https://docs.djangoproject.com/en/stable/"
+ARCHIVE_PATH = "releases/security/"
 
-# FIX 1 (Critical): Use reliable public JSON CVE source (MITRE CVE Services)
-CVE_API_URL = "https://cveawg.mitre.org/api/cve/"
+# CVE enrichment (MITRE CVE Services API)
+MITRE_CVE_API = "https://cveawg.mitre.org/api/cve/"  # + CVE-YYYY-NNNN
 
-# Optional fallback (coverage + reliability)
-NVD_API_URL = "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId="
 
-CVE_RE = re.compile(r"\bCVE-\d{4}-\d{4,}\b", re.IGNORECASE)
+# Django page often uses "CVE 2026-1207" (space) in headings/links
+CVE_ANY_RE = re.compile(r"\bCVE[\s-](\d{4})[\s-](\d{4,})\b", re.IGNORECASE)
+
+# Patch links on archive page typically point to github commit URLs
 GITHUB_COMMIT_RE = re.compile(
     r"https?://github\.com/django/django/commit/([0-9a-f]{7,40})\b", re.IGNORECASE
 )
-SEMVER_TAG_RE = re.compile(r"^\d+\.\d+\.\d+$")
 
-DEFAULT_MAX_WORKERS = 6
-DEFAULT_RPS = 1.0
-DEFAULT_RETRIES = 4
+# Extract something like "Django 6.0" or "Django 5.2.3" from list item text
+DJANGO_VERSION_RE = re.compile(r"\bDjango\s+(\d+\.\d+(?:\.\d+)?)\b", re.IGNORECASE)
 
 
-# -----------------------------
-# Logging (structured JSON)
-# -----------------------------
-class JsonFormatter(logging.Formatter):
-    def format(self, record: logging.LogRecord) -> str:
-        payload = {
-            "ts": datetime.now(timezone.utc).isoformat(),
-            "level": record.levelname,
-            "msg": record.getMessage(),
-            "logger": record.name,
-        }
-        for k in ("event", "url", "cve_id", "path", "status", "detail", "commit"):
-            if hasattr(record, k):
-                payload[k] = getattr(record, k)
-        return json.dumps(payload, ensure_ascii=False)
-
-
-def setup_logger(log_path: Path, verbose: bool) -> logging.Logger:
-    logger = logging.getLogger("scrape")
-    logger.setLevel(logging.DEBUG)
-
-    ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(logging.DEBUG if verbose else logging.INFO)
-    ch.setFormatter(JsonFormatter())
-
-    fh = logging.FileHandler(log_path, encoding="utf-8")
-    fh.setLevel(logging.DEBUG)
-    fh.setFormatter(JsonFormatter())
-
-    logger.handlers.clear()
-    logger.addHandler(ch)
-    logger.addHandler(fh)
-    logger.propagate = False
-    return logger
-
-
-# -----------------------------
-# Global rate limiter
-# -----------------------------
+@dataclass
 class RateLimiter:
-    def __init__(self, rps: float):
-        self.rps = max(0.1, float(rps))
-        self.min_interval = 1.0 / self.rps
-        self._next_time = time.monotonic()
+    rps: float
+    next_time: float = 0.0
 
-    def wait(self):
+    def __post_init__(self) -> None:
+        self.rps = max(0.1, float(self.rps))
+        self.next_time = time.monotonic()
+
+    def wait(self) -> None:
+        min_interval = 1.0 / self.rps
         now = time.monotonic()
-        if now < self._next_time:
-            time.sleep(self._next_time - now)
-        jitter = random.uniform(0.0, 0.15 * self.min_interval)
-        self._next_time = max(self._next_time + self.min_interval, time.monotonic()) + jitter
+        if now < self.next_time:
+            time.sleep(self.next_time - now)
+        # small jitter helps avoid sync bursts
+        jitter = random.uniform(0.0, 0.15 * min_interval)
+        self.next_time = max(self.next_time + min_interval, time.monotonic()) + jitter
 
 
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+def normalize_cve(text: str) -> Optional[str]:
+    m = CVE_ANY_RE.search(text)
+    if not m:
+        return None
+    year, num = m.group(1), m.group(2)
+    return f"CVE-{year}-{num}"
 
 
-def sha256_hex(s: str) -> str:
-    return hashlib.sha256(s.encode("utf-8")).hexdigest()
-
-
-def read_json(path: Path) -> Any:
-    with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def write_json(path: Path, obj: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    with tmp.open("w", encoding="utf-8") as f:
-        json.dump(obj, f, indent=2, ensure_ascii=False)
-        f.write("\n")
-    tmp.replace(path)
-
-
-# -----------------------------
-# HTTP + Cache
-# -----------------------------
-def request_with_cache(
-    session: requests.Session,
-    url: str,
-    cache_path: Path,
-    limiter: RateLimiter,
-    logger: logging.Logger,
-    refresh: bool,
-    retries: int,
-    timeout: int = 30,
-) -> Tuple[str, Dict[str, Any]]:
-    cache_meta_path = cache_path.with_suffix(".meta.json")
-
-    headers: Dict[str, str] = {"User-Agent": "research-scraper/1.0"}
-    cached_meta: Optional[Dict[str, Any]] = None
-    cached_text: Optional[str] = None
-
-    if cache_path.exists() and cache_meta_path.exists():
-        try:
-            cached_meta = read_json(cache_meta_path)
-            cached_text = cache_path.read_text(encoding="utf-8")
-        except Exception:
-            cached_meta = None
-            cached_text = None
-
-    if cached_meta and not refresh:
-        if cached_meta.get("etag"):
-            headers["If-None-Match"] = cached_meta["etag"]
-        if cached_meta.get("last_modified"):
-            headers["If-Modified-Since"] = cached_meta["last_modified"]
-
+def http_get(session: requests.Session, url: str, limiter: RateLimiter, timeout: int, retries: int) -> str:
+    headers = {"User-Agent": "django-security-research-scrape/1.0"}
     last_err: Optional[Exception] = None
     for attempt in range(1, retries + 1):
         try:
             limiter.wait()
-            resp = session.get(url, headers=headers, timeout=timeout)
-            status = resp.status_code
-
-            if status == 304 and cached_text is not None and cached_meta is not None:
-                cached_meta["fetched_at"] = utc_now_iso()
-                write_json(cache_meta_path, cached_meta)
-                return cached_text, cached_meta
-
+            resp = session.get(url, headers=headers, timeout=timeout, allow_redirects=True)
             resp.raise_for_status()
-            text = resp.text
-
-            meta = {
-                "fetched_at": utc_now_iso(),
-                "url": url,
-                "status": status,
-                "etag": resp.headers.get("ETag"),
-                "last_modified": resp.headers.get("Last-Modified"),
-                "sha256": sha256_hex(text),
-            }
-            cache_path.parent.mkdir(parents=True, exist_ok=True)
-            cache_path.write_text(text, encoding="utf-8")
-            write_json(cache_meta_path, meta)
-            logger.debug(
-                "fetched",
-                extra={"event": "fetched", "url": url, "status": status, "path": str(cache_path)},
-            )
-            return text, meta
-
+            return resp.text
         except Exception as e:
             last_err = e
-            backoff = (2 ** (attempt - 1)) + random.uniform(0, 0.5)
-            logger.warning("request_failed", extra={"event": "request_failed", "url": url, "detail": str(e)})
             if attempt < retries:
+                backoff = (2 ** (attempt - 1)) + random.uniform(0, 0.5)
                 time.sleep(backoff)
-
     assert last_err is not None
     raise last_err
 
 
-# -----------------------------
-# CVE enrichment (MITRE-first, NVD fallback)
-# -----------------------------
-def parse_cve_json5_containers(data: Dict[str, Any]) -> Tuple[str, str, str]:
+def parse_mitre_cve(data: Dict[str, Any]) -> Tuple[str, str, str]:
     """
-    Parse CVE JSON 5 style: containers.cna.descriptions + containers.cna.problemTypes
-    Used for MITRE CVE Services endpoint.
+    Pull:
+      - description (English if available)
+      - cwe id + name (best-effort)
     """
     desc = ""
     cwe_id = ""
@@ -270,11 +158,10 @@ def parse_cve_json5_containers(data: Dict[str, Any]) -> Tuple[str, str, str]:
         en = next((d for d in descriptions if isinstance(d, dict) and d.get("lang") == "en"), None)
         pick = en if en else descriptions[0]
         if isinstance(pick, dict):
-            desc = pick.get("value", "") or ""
+            desc = (pick.get("value") or "").strip()
 
     problem_types = cna.get("problemTypes", [])
-    if isinstance(problem_types, list) and problem_types:
-        # pick the first non-empty CWE we find
+    if isinstance(problem_types, list):
         for pt in problem_types:
             if not isinstance(pt, dict):
                 continue
@@ -284,589 +171,220 @@ def parse_cve_json5_containers(data: Dict[str, Any]) -> Tuple[str, str, str]:
             for d in pdesc:
                 if not isinstance(d, dict):
                     continue
-                cid = d.get("cweId", "") or ""
-                cname = d.get("description", "") or ""
+                cid = (d.get("cweId") or "").strip()
+                cname = (d.get("description") or "").strip()
                 if cid:
-                    cwe_id = cid
-                    cwe_name = cname
-                    break
-            if cwe_id:
-                break
-
-    return desc, cwe_id, cwe_name
-
-
-def parse_nvd(data: Dict[str, Any]) -> Tuple[str, str, str]:
-    """
-    Parse NVD CVE API 2.0 response.
-    """
-    desc = ""
-    cwe_id = ""
-    cwe_name = ""
-
-    vulns = data.get("vulnerabilities", [])
-    if not isinstance(vulns, list) or not vulns:
-        return desc, cwe_id, cwe_name
-
-    cve = vulns[0].get("cve", {}) if isinstance(vulns[0], dict) else {}
-    descriptions = cve.get("descriptions", [])
-    if isinstance(descriptions, list) and descriptions:
-        en = next((d for d in descriptions if isinstance(d, dict) and d.get("lang") == "en"), None)
-        pick = en if en else descriptions[0]
-        if isinstance(pick, dict):
-            desc = pick.get("value", "") or ""
-
-    weaknesses = cve.get("weaknesses", [])
-    if isinstance(weaknesses, list) and weaknesses:
-        for w in weaknesses:
-            if not isinstance(w, dict):
-                continue
-            wdesc = w.get("description", [])
-            if not isinstance(wdesc, list):
-                continue
-            for d in wdesc:
-                if not isinstance(d, dict):
-                    continue
-                value = (d.get("value", "") or "").strip()
-                # Often looks like "CWE-79"
-                if value.upper().startswith("CWE-"):
-                    cwe_id = value.upper()
-                    cwe_name = ""  # NVD often doesn't include name here
+                    cwe_id, cwe_name = cid, cname
                     return desc, cwe_id, cwe_name
 
     return desc, cwe_id, cwe_name
 
 
-def fetch_cve_enrichment(
-    session: requests.Session,
-    cve_id: str,
-    cache_dir: Path,
-    limiter: RateLimiter,
-    logger: logging.Logger,
-    refresh: bool,
-    retries: int,
-) -> Dict[str, str]:
-    cve_id_u = cve_id.upper()
-
-    # Primary: MITRE CVE Services
-    mitre_url = CVE_API_URL + cve_id_u
-    mitre_cache = cache_dir / "mitre" / f"{cve_id_u}.json"
-
-    desc = ""
-    cwe_id = ""
-    cwe_name = ""
-
+def enrich_cve(session: requests.Session, cve_id: str, limiter: RateLimiter, timeout: int, retries: int) -> Dict[str, str]:
+    url = MITRE_CVE_API + cve_id
     try:
-        text, _meta = request_with_cache(
-            session=session,
-            url=mitre_url,
-            cache_path=mitre_cache,
-            limiter=limiter,
-            logger=logger,
-            refresh=refresh,
-            retries=retries,
-            timeout=30,
-        )
+        text = http_get(session, url, limiter=limiter, timeout=timeout, retries=retries)
         data = json.loads(text)
-        desc, cwe_id, cwe_name = parse_cve_json5_containers(data)
-    except Exception as e:
-        logger.warning(
-            "cve_mitre_failed",
-            extra={"event": "cve_mitre_failed", "cve_id": cve_id_u, "detail": str(e), "url": mitre_url},
+        desc, cwe_id, cwe_name = parse_mitre_cve(data)
+        return {"cve_description": desc or "", "cwe_id": cwe_id or "", "cwe_name": cwe_name or ""}
+    except Exception:
+        # best-effort project: leave blank if a record is missing/unavailable
+        return {"cve_description": "", "cwe_id": "", "cwe_name": ""}
+
+
+def group_patches_by_series(patches: List[Tuple[str, str, str]]) -> List[Dict[str, Any]]:
+    """
+    patches: list of (series_label, commit, url)
+    series_label example: "6.0.x" (derived from the li text)
+    """
+    buckets: Dict[str, Dict[str, Any]] = {}
+    for series_label, commit, url in patches:
+        b = buckets.setdefault(
+            series_label,
+            {"version": series_label, "version_not_affected": "", "patches": []},
         )
-
-    # Fallback: NVD (helps fill gaps / if MITRE fails)
-    if not desc or not cwe_id:
-        nvd_url = NVD_API_URL + cve_id_u
-        nvd_cache = cache_dir / "nvd" / f"{cve_id_u}.json"
-        try:
-            text, _meta = request_with_cache(
-                session=session,
-                url=nvd_url,
-                cache_path=nvd_cache,
-                limiter=limiter,
-                logger=logger,
-                refresh=refresh,
-                retries=retries,
-                timeout=30,
-            )
-            data = json.loads(text)
-            nvd_desc, nvd_cwe_id, nvd_cwe_name = parse_nvd(data)
-            if not desc:
-                desc = nvd_desc
-            if not cwe_id:
-                cwe_id = nvd_cwe_id
-            if not cwe_name:
-                cwe_name = nvd_cwe_name
-        except Exception as e:
-            logger.warning(
-                "cve_nvd_failed",
-                extra={"event": "cve_nvd_failed", "cve_id": cve_id_u, "detail": str(e), "url": nvd_url},
-            )
-
-    return {"cve_description": desc or "", "cwe_id": cwe_id or "", "cwe_name": cwe_name or ""}
-
-
-# -----------------------------
-# Git inference module (FAST + cached)
-# -----------------------------
-def run_git(repo_dir: Path, args: List[str]) -> str:
-    proc = subprocess.run(
-        ["git", *args],
-        cwd=str(repo_dir),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        check=False,
-    )
-    if proc.returncode != 0:
-        raise RuntimeError(proc.stderr.strip() or f"git failed: {' '.join(args)}")
-    return proc.stdout
-
-
-def normalize_tag(tag: str) -> str:
-    return tag.strip().replace("refs/tags/", "")
-
-
-def semver_tuple(tag: str) -> Tuple[int, int, int]:
-    a, b, c = tag.split(".")
-    return (int(a), int(b), int(c))
-
-
-class CommitTagInferer:
-    """
-    FIX 2 (Critical): Return ONE bucket per commit.
-    We choose the single earliest semver tag overall that contains the commit, and derive series from it.
-    This prevents 'affected_versions' explosion.
-    """
-    def __init__(self, repo_dir: Path, logger: logging.Logger):
-        self.repo_dir = repo_dir
-        self.logger = logger
-        self._cache: Dict[str, List[Tuple[str, str]]] = {}
-
-        _ = run_git(repo_dir, ["rev-parse", "--git-dir"])
-
-    def tags_containing(self, commit: str) -> List[str]:
-        out = run_git(self.repo_dir, ["tag", "--contains", commit])
-        return [normalize_tag(t) for t in out.splitlines() if t.strip()]
-
-    def infer(self, commit: str) -> List[Tuple[str, str]]:
-        if commit in self._cache:
-            return self._cache[commit]
-
-        try:
-            tags = self.tags_containing(commit)
-        except Exception as e:
-            self.logger.warning(
-                "tag_contains_failed",
-                extra={"event": "tag_contains_failed", "commit": commit, "detail": str(e)},
-            )
-            self._cache[commit] = []
-            return []
-
-        semver_tags = [t for t in tags if SEMVER_TAG_RE.match(t)]
-        if not semver_tags:
-            self._cache[commit] = []
-            return []
-
-        earliest = min(semver_tags, key=semver_tuple)
-        major, minor, _patch = semver_tuple(earliest)
-        inferred = [(f"{major}.{minor}.x", earliest)]
-        self._cache[commit] = inferred
-        return inferred
-
-
-# -----------------------------
-# Django scraping
-# -----------------------------
-def extract_release_links(index_html: str) -> List[str]:
-    soup = BeautifulSoup(index_html, "html.parser")
-    links: List[str] = []
-
-    for a in soup.find_all("a", href=True):
-        href = a["href"]
-        if "/releases/security/" in href:
-            links.append(urljoin(BASE, href))
-
-    # de-dupe deterministic
-    seen = set()
-    out = []
-    for u in links:
-        if u not in seen:
-            seen.add(u)
-            out.append(u)
-    return out
-
-
-def _dedupe_patches(patches: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    seen = set()
-    uniq = []
-    for p in patches:
-        c = p.get("commit")
-        if not c or c in seen:
+        # de-dupe commits within a bucket
+        if any(p.get("commit") == commit for p in b["patches"]):
             continue
-        seen.add(c)
-        uniq.append(p)
-    return uniq
+        b["patches"].append({"commit": commit, "url": url, "same_as_stable": False})
+
+    # stable-ish ordering: sort by major/minor numbers when possible, else last
+    def sort_key(v: str) -> Tuple[int, int, str]:
+        m = re.match(r"^(\d+)\.(\d+)\.x$", v)
+        if not m:
+            return (10**9, 10**9, v)
+        return (int(m.group(1)), int(m.group(2)), v)
+
+    return [buckets[k] for k in sorted(buckets.keys(), key=sort_key)]
 
 
-def parse_release_page(
-    release_html: str,
-) -> Dict[str, Tuple[str, List[Dict[str, Any]]]]:
+def parse_archive_page(archive_html: str, archive_url: str) -> Dict[str, Dict[str, Any]]:
     """
-    FIX 3 (Important): Extract patches PER CVE SECTION, not "whole page for every CVE".
-
-    Returns:
-        {CVE-ID: (django_description, patches_for_that_cve)}
+    Parse https://docs.djangoproject.com/en/<ver>/releases/security/
+    into:
+      cve_id -> { django_description, affected_versions[] }
     """
-    soup = BeautifulSoup(release_html, "html.parser")
+    soup = BeautifulSoup(archive_html, "html.parser")
 
-    # Best-effort overall Django description: first paragraph
-    p = soup.find("p")
-    base_desc = p.get_text(" ", strip=True) if p else ""
-    base_desc = re.sub(r"\s+", " ", base_desc).strip()
+    # Each issue is usually a <h3> like:
+    # "February 3, 2026 - CVE 2026-1207"
+    issue_headers = soup.find_all(["h3", "h2"])
+    cve_map: Dict[str, Dict[str, Any]] = {}
 
-    # Find headers that mention a CVE, then capture content until next header.
-    headers = soup.find_all(["h2", "h3", "h4"])
-    sections: Dict[str, Tuple[str, List[Dict[str, Any]]]] = {}
-
-    for h in headers:
-        h_text = h.get_text(" ", strip=True)
-        found = {m.group(0).upper() for m in CVE_RE.finditer(h_text)}
-        if not found:
+    for h in issue_headers:
+        cve_id = normalize_cve(h.get_text(" ", strip=True))
+        if not cve_id:
             continue
 
-        # Collect nodes until next header
+        # Collect content until next header of same-ish level
         nodes: List[Any] = []
         cur = h.next_sibling
         while cur is not None:
-            if getattr(cur, "name", None) in ("h2", "h3", "h4"):
+            if getattr(cur, "name", None) in ("h2", "h3"):
                 break
             nodes.append(cur)
             cur = cur.next_sibling
 
-        # Build section HTML fragment and parse for commits + local desc
-        frag_html = "".join(str(n) for n in nodes)
-        frag = BeautifulSoup(frag_html, "html.parser")
+        frag = BeautifulSoup("".join(str(n) for n in nodes), "html.parser")
 
-        # section description: first paragraph after header, fallback to base_desc
-        p2 = frag.find("p")
-        section_desc = p2.get_text(" ", strip=True) if p2 else ""
-        section_desc = re.sub(r"\s+", " ", section_desc).strip() or base_desc
+        # django_description: first meaningful line of text in this block
+        django_desc = ""
+        # Prefer a plain text sentence before the bullet list
+        # (Archive page typically has a single-sentence description right after the header)
+        text_lines = [ln.strip() for ln in frag.get_text("\n").splitlines()]
+        text_lines = [ln for ln in text_lines if ln]
+        # Filter out common boilerplate fragments
+        for ln in text_lines:
+            if ln.lower().startswith("django "):  # bullet intro, not the vulnerability description
+                continue
+            if ln.lower().startswith("full description"):
+                continue
+            django_desc = ln
+            break
 
-        patches: List[Dict[str, Any]] = []
-        for a in frag.find_all("a", href=True):
-            m = GITHUB_COMMIT_RE.search(a["href"])
-            if m:
-                commit = m.group(1)
-                patches.append(
-                    {
-                        "commit": commit,
-                        "url": f"https://github.com/django/django/commit/{commit}",
-                        "same_as_stable": False,
-                    }
-                )
-        patches = _dedupe_patches(patches)
+        # Patch list items: "Django 6.0 (patch)" -> commit link
+        patches: List[Tuple[str, str, str]] = []
+        for li in frag.find_all("li"):
+            li_text = li.get_text(" ", strip=True)
+            vm = DJANGO_VERSION_RE.search(li_text)
+            series_label = "unknown"
+            if vm:
+                ver = vm.group(1)  # "6.0" or "5.2.3"
+                parts = ver.split(".")
+                if len(parts) >= 2:
+                    series_label = f"{parts[0]}.{parts[1]}.x"
 
-        for cve_id in sorted(found):
-            # If multiple headers mention same CVE, merge patches conservatively.
-            if cve_id not in sections:
-                sections[cve_id] = (section_desc, patches)
-            else:
-                old_desc, old_patches = sections[cve_id]
-                merged = _dedupe_patches(old_patches + patches)
-                # keep the first non-empty desc
-                desc_to_use = old_desc or section_desc
-                sections[cve_id] = (desc_to_use, merged)
+            for a in li.find_all("a", href=True):
+                href = urljoin(archive_url, a["href"])
+                cm = GITHUB_COMMIT_RE.search(href)
+                if cm:
+                    commit = cm.group(1)
+                    patches.append((series_label, commit, f"https://github.com/django/django/commit/{commit}"))
 
-    # Fallback: if no CVE headers found, do page-wide extraction as last resort
-    if not sections:
-        text = soup.get_text("\n")
-        cves = sorted({m.group(0).upper() for m in CVE_RE.finditer(text)})
-
-        patches: List[Dict[str, Any]] = []
-        for a in soup.find_all("a", href=True):
-            m = GITHUB_COMMIT_RE.search(a["href"])
-            if m:
-                commit = m.group(1)
-                patches.append(
-                    {
-                        "commit": commit,
-                        "url": f"https://github.com/django/django/commit/{commit}",
-                        "same_as_stable": False,
-                    }
-                )
-        patches = _dedupe_patches(patches)
-
-        for cve_id in cves:
-            sections[cve_id] = (base_desc, patches)
-
-    return sections
-
-
-def deterministic_sort_cve_id(cve_id: str) -> Tuple[int, int]:
-    m = re.match(r"CVE-(\d{4})-(\d+)", cve_id.upper())
-    if not m:
-        return (0, 0)
-    return (int(m.group(1)), int(m.group(2)))
-
-
-def ensure_bool_fields(data: List[Dict[str, Any]]) -> None:
-    for entry in data:
-        for av in entry.get("affected_versions", []) or []:
-            for p in av.get("patches", []) or []:
-                v = p.get("same_as_stable", False)
-                if isinstance(v, str):
-                    p["same_as_stable"] = v.strip().lower() == "true"
-                elif v is None:
-                    p["same_as_stable"] = False
-                else:
-                    p["same_as_stable"] = bool(v)
-
-
-def build_affected_versions_from_inference(
-    patches: List[Dict[str, Any]],
-    inferer: Optional[CommitTagInferer],
-) -> List[Dict[str, Any]]:
-    """
-    Build affected_versions list by assigning each patch commit to ONE series+first-fixed-tag bucket.
-    If no tag inference, fall back to a single "unknown" bucket with all patches.
-    """
-    if inferer is None:
-        return [
-            {
-                "version": "unknown",
-                "version_not_affected": "",
-                "patches": patches,
-            }
+        affected_versions = group_patches_by_series(patches) if patches else [
+            {"version": "unknown", "version_not_affected": "", "patches": []}
         ]
 
-    buckets: Dict[Tuple[str, str], Dict[str, Any]] = {}
+        # Merge if CVE appears multiple times (rare)
+        if cve_id not in cve_map:
+            cve_map[cve_id] = {"django_description": django_desc, "affected_versions": affected_versions}
+        else:
+            if (not cve_map[cve_id].get("django_description")) and django_desc:
+                cve_map[cve_id]["django_description"] = django_desc
+            # merge version buckets
+            existing = {av["version"]: av for av in cve_map[cve_id].get("affected_versions", [])}
+            for av in affected_versions:
+                v = av["version"]
+                if v not in existing:
+                    existing[v] = av
+                else:
+                    # merge patches
+                    seen = {p["commit"] for p in existing[v].get("patches", [])}
+                    for p in av.get("patches", []):
+                        if p["commit"] not in seen:
+                            existing[v]["patches"].append(p)
+                            seen.add(p["commit"])
+            cve_map[cve_id]["affected_versions"] = [existing[k] for k in sorted(existing.keys())]
 
-    for p in patches:
-        commit = p["commit"]
-        inferred = inferer.infer(commit)
-
-        if not inferred:
-            key = ("main", "")
-            if key not in buckets:
-                buckets[key] = {"version": "main", "version_not_affected": "", "patches": []}
-            buckets[key]["patches"].append(p)
-            continue
-
-        # inferred is now always length 1
-        series_label, earliest_tag = inferred[0]
-        key = (series_label, earliest_tag)
-        if key not in buckets:
-            buckets[key] = {"version": series_label, "version_not_affected": earliest_tag, "patches": []}
-        buckets[key]["patches"].append(p)
-
-    def sort_key(item: Dict[str, Any]) -> Tuple[int, int, int, int]:
-        v = item.get("version", "")
-        vna = item.get("version_not_affected", "")
-        if v == "main":
-            return (10**9, 10**9, 10**9, 1)
-        if SEMVER_TAG_RE.match(vna):
-            a, b, c = semver_tuple(vna)
-            return (a, b, c, 0)
-        return (10**9, 10**9, 10**9, 0)
-
-    out = list(buckets.values())
-    for av in out:
-        av["patches"] = _dedupe_patches(av.get("patches", []))
-
-    out.sort(key=sort_key)
-    return out
+    return cve_map
 
 
-# -----------------------------
-# Main
-# -----------------------------
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Research-grade Django security scraper -> data.json (with git inference)")
-    ap.add_argument("--out", default="data.json", help="Output JSON file (default: data.json)")
-    ap.add_argument("--cache-dir", default="cache", help="Cache directory (default: cache/)")
-    ap.add_argument("--log", default="scrape.log.jsonl", help="Log file path (default: scrape.log.jsonl)")
-    ap.add_argument("--manifest", default="run_manifest_scrape.json", help="Run manifest path")
-    ap.add_argument("--refresh", action="store_true", help="Refresh caches (ignore conditional GET)")
-    ap.add_argument("--max-workers", type=int, default=DEFAULT_MAX_WORKERS, help="Max worker threads for CVE fetch")
-    ap.add_argument("--rps", type=float, default=DEFAULT_RPS, help="Global max requests/sec across workers")
-    ap.add_argument("--retries", type=int, default=DEFAULT_RETRIES, help="HTTP retries with backoff")
-    ap.add_argument("--verbose", action="store_true", help="Verbose console logs")
-    ap.add_argument("--repo", default="repositories/django", help="Path to django git repo for inference")
-    ap.add_argument("--infer-from-git", action="store_true", help="Infer version buckets using git tags containing commits")
+    ap = argparse.ArgumentParser(
+        description="Scrape Django security archive -> data.json (minimal, no HTML artifacts)."
+    )
+    ap.add_argument("--base-url", default=DEFAULT_BASE_URL, help="Docs base URL (default: %(default)s)")
+    ap.add_argument("--out", default="data.json", help="Output JSON file (default: %(default)s)")
+    ap.add_argument("--max-workers", type=int, default=6, help="Threads for CVE enrichment (default: %(default)s)")
+    ap.add_argument("--rps", type=float, default=1.0, help="Max requests/sec across all requests (default: %(default)s)")
+    ap.add_argument("--retries", type=int, default=4, help="HTTP retries (default: %(default)s)")
+    ap.add_argument("--timeout", type=int, default=30, help="HTTP timeout seconds (default: %(default)s)")
     args = ap.parse_args()
 
-    out_path = Path(args.out)
-    cache_dir = Path(args.cache_dir)
-    log_path = Path(args.log)
-    manifest_path = Path(args.manifest)
+    base_url = args.base_url.rstrip("/") + "/"
+    archive_url = urljoin(base_url, ARCHIVE_PATH)
 
-    logger = setup_logger(log_path, args.verbose)
     session = requests.Session()
     limiter = RateLimiter(args.rps)
 
-    inferer: Optional[CommitTagInferer] = None
-    if args.infer_from_git:
-        try:
-            inferer = CommitTagInferer(Path(args.repo), logger)
-            logger.info("git_inference_enabled", extra={"event": "git_inference_enabled", "path": str(Path(args.repo))})
-        except Exception as e:
-            inferer = None
-            logger.warning("git_inference_disabled", extra={"event": "git_inference_disabled", "detail": str(e)})
-
-    manifest: Dict[str, Any] = {
-        "tool": "scrape.py",
-        "started_at": utc_now_iso(),
-        "config": {
-            "out": str(out_path),
-            "cache_dir": str(cache_dir),
-            "refresh": args.refresh,
-            "max_workers": args.max_workers,
-            "rps": args.rps,
-            "retries": args.retries,
-            "security_index_url": SECURITY_INDEX_URL,
-            "cve_api_url": CVE_API_URL,
-            "nvd_api_url": NVD_API_URL,
-            "infer_from_git": bool(args.infer_from_git),
-            "repo": str(Path(args.repo)),
-        },
-        "stats": {
-            "release_links": 0,
-            "release_pages_parsed": 0,
-            "cves_found": 0,
-            "cve_enriched": 0,
-            "errors": 0,
-        },
-        "errors": [],
-        "sources": {"django_index": {}, "django_pages": [], "cve_api": []},
-    }
-
     try:
-        index_cache = cache_dir / "django" / "security_index.html"
-        index_html, index_meta = request_with_cache(
-            session=session,
-            url=SECURITY_INDEX_URL,
-            cache_path=index_cache,
-            limiter=limiter,
-            logger=logger,
-            refresh=args.refresh,
-            retries=args.retries,
-        )
-        manifest["sources"]["django_index"] = index_meta
-
-        links = extract_release_links(index_html)
-        manifest["stats"]["release_links"] = len(links)
-
-        cve_to_entry: Dict[str, Dict[str, Any]] = {}
-
-        for url in tqdm(links, desc="Release pages", unit="page"):
-            page_cache = cache_dir / "django" / "pages" / f"{sha256_hex(url)}.html"
-            html, meta = request_with_cache(
-                session=session,
-                url=url,
-                cache_path=page_cache,
-                limiter=limiter,
-                logger=logger,
-                refresh=args.refresh,
-                retries=args.retries,
-            )
-            manifest["sources"]["django_pages"].append(meta)
-            manifest["stats"]["release_pages_parsed"] += 1
-
-            per_cve = parse_release_page(html)
-
-            for cve_id, (django_desc, patches) in per_cve.items():
-                affected_versions = build_affected_versions_from_inference(patches, inferer)
-
-                if cve_id not in cve_to_entry:
-                    cve_to_entry[cve_id] = {
-                        "cve_id": cve_id,
-                        "cve_description": "",
-                        "django_description": django_desc,
-                        "cwe": {"id": "", "name": ""},
-                        "affected_versions": affected_versions,
-                    }
-                else:
-                    if (not cve_to_entry[cve_id].get("django_description")) and django_desc:
-                        cve_to_entry[cve_id]["django_description"] = django_desc
-
-                    existing = {
-                        (av["version"], av.get("version_not_affected", "")): av
-                        for av in cve_to_entry[cve_id].get("affected_versions", [])
-                    }
-                    for av in affected_versions:
-                        key = (av["version"], av.get("version_not_affected", ""))
-                        if key not in existing:
-                            existing[key] = av
-                        else:
-                            merged = _dedupe_patches(existing[key].get("patches", []) + av.get("patches", []))
-                            existing[key]["patches"] = merged
-
-                    cve_to_entry[cve_id]["affected_versions"] = sorted(
-                        existing.values(),
-                        key=lambda x: (x["version"] == "main", x.get("version_not_affected", ""), x["version"]),
-                    )
-
-        all_cves = sorted(cve_to_entry.keys(), key=deterministic_sort_cve_id)
-        manifest["stats"]["cves_found"] = len(all_cves)
-
-        cve_cache_dir = cache_dir / "cve"
-        enrichment: Dict[str, Dict[str, str]] = {}
-
-        with ThreadPoolExecutor(max_workers=args.max_workers) as ex:
-            futures = {
-                ex.submit(
-                    fetch_cve_enrichment,
-                    session,
-                    cve_id,
-                    cve_cache_dir,
-                    limiter,
-                    logger,
-                    args.refresh,
-                    args.retries,
-                ): cve_id
-                for cve_id in all_cves
-            }
-
-            for fut in tqdm(as_completed(futures), total=len(futures), desc="CVE enrich", unit="cve"):
-                cve_id = futures[fut]
-                try:
-                    enrichment[cve_id] = fut.result()
-                    manifest["stats"]["cve_enriched"] += 1
-                except Exception as e:
-                    manifest["stats"]["errors"] += 1
-                    manifest["errors"].append({"cve_id": cve_id, "error": str(e)})
-                    logger.error(
-                        "cve_enrich_failed",
-                        extra={"event": "cve_enrich_failed", "cve_id": cve_id, "detail": str(e)},
-                    )
-
-        output: List[Dict[str, Any]] = []
-        for cve_id in all_cves:
-            entry = cve_to_entry[cve_id]
-            enrich = enrichment.get(cve_id, {})
-            entry["cve_description"] = enrich.get("cve_description", "") or ""
-            entry["cwe"]["id"] = enrich.get("cwe_id", "") or ""
-            entry["cwe"]["name"] = enrich.get("cwe_name", "") or ""
-            output.append(entry)
-
-        ensure_bool_fields(output)
-        write_json(out_path, output)
-
-        manifest["finished_at"] = utc_now_iso()
-        write_json(manifest_path, manifest)
-
-        logger.info("run_complete", extra={"event": "run_complete", "path": str(out_path)})
-        return 0
-
+        html = http_get(session, archive_url, limiter=limiter, timeout=args.timeout, retries=args.retries)
     except Exception as e:
-        manifest["finished_at"] = utc_now_iso()
-        manifest["stats"]["errors"] += 1
-        manifest["errors"].append({"error": str(e)})
-        write_json(manifest_path, manifest)
-        logger.error("fatal", extra={"event": "fatal", "detail": str(e)})
+        print(f"[error] Failed to fetch {archive_url}: {e}", file=sys.stderr)
         return 2
+
+    cve_map = parse_archive_page(html, archive_url)
+
+    if not cve_map:
+        print(
+            f"[error] No CVEs found on {archive_url}. "
+            f"This page uses headings like 'CVE 2026-1207' (space) and/or 'CVE-2026-1207'.",
+            file=sys.stderr,
+        )
+        return 2
+
+    cve_ids = sorted(cve_map.keys(), key=lambda c: (int(c.split("-")[1]), int(c.split("-")[2])))
+
+    # Enrich CVEs
+    enrichment: Dict[str, Dict[str, str]] = {}
+    with ThreadPoolExecutor(max_workers=args.max_workers) as ex:
+        futs = {
+            ex.submit(enrich_cve, session, cve_id, limiter, args.timeout, args.retries): cve_id
+            for cve_id in cve_ids
+        }
+        for fut in tqdm(as_completed(futs), total=len(futs), desc="CVE enrich", unit="cve"):
+            cve_id = futs[fut]
+            enrichment[cve_id] = fut.result()
+
+    # Build output schema
+    output: List[Dict[str, Any]] = []
+    for cve_id in cve_ids:
+        info = cve_map[cve_id]
+        enrich = enrichment.get(cve_id, {})
+        output.append(
+            {
+                "cve_id": cve_id,
+                "cve_description": enrich.get("cve_description", "") or "",
+                "django_description": info.get("django_description", "") or "",
+                "cwe": {
+                    "id": enrich.get("cwe_id", "") or "",
+                    "name": enrich.get("cwe_name", "") or "",
+                },
+                "affected_versions": info.get("affected_versions", []) or [],
+            }
+        )
+
+    # Write file
+    try:
+        with open(args.out, "w", encoding="utf-8") as f:
+            json.dump(output, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+    except Exception as e:
+        print(f"[error] Failed to write {args.out}: {e}", file=sys.stderr)
+        return 2
+
+    print(f"[ok] Wrote {len(output)} CVEs to {args.out}")
+    return 0
 
 
 if __name__ == "__main__":
