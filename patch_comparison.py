@@ -43,66 +43,26 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
-import random
 import re
 import subprocess
-import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from packaging.version import Version, InvalidVersion
 from tqdm import tqdm
 
 
+SEMVER_SERIES_RE = re.compile(r"^(\d+)\.(\d+)\.x$", re.IGNORECASE)
+
+
 # -----------------------------
-# Logging (structured JSON)
+# Basic JSON helpers
 # -----------------------------
-class JsonFormatter(logging.Formatter):
-    def format(self, record: logging.LogRecord) -> str:
-        payload = {
-            "ts": datetime.now(timezone.utc).isoformat(),
-            "level": record.levelname,
-            "msg": record.getMessage(),
-            "logger": record.name,
-        }
-        for k in ("event", "cve_id", "commit", "detail"):
-            if hasattr(record, k):
-                payload[k] = getattr(record, k)
-        return json.dumps(payload, ensure_ascii=False)
-
-
-def setup_logger(log_path: Path, verbose: bool) -> logging.Logger:
-    logger = logging.getLogger("patch_compare")
-    logger.setLevel(logging.DEBUG)
-
-    ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(logging.DEBUG if verbose else logging.INFO)
-    ch.setFormatter(JsonFormatter())
-
-    fh = logging.FileHandler(log_path, encoding="utf-8")
-    fh.setLevel(logging.DEBUG)
-    fh.setFormatter(JsonFormatter())
-
-    logger.handlers.clear()
-    logger.addHandler(ch)
-    logger.addHandler(fh)
-    logger.propagate = False
-    return logger
-
-
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
 def read_json(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def write_json(path: Path, obj: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
     with tmp.open("w", encoding="utf-8") as f:
         json.dump(obj, f, indent=2, ensure_ascii=False)
@@ -113,10 +73,11 @@ def write_json(path: Path, obj: Any) -> None:
 # -----------------------------
 # Git helpers
 # -----------------------------
-def run_git(repo_dir: Path, args: List[str]) -> str:
+def run_git(repo_dir: Path, args: List[str], stdin: Optional[str] = None) -> str:
     proc = subprocess.run(
         ["git", *args],
         cwd=str(repo_dir),
+        input=stdin,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -127,213 +88,125 @@ def run_git(repo_dir: Path, args: List[str]) -> str:
     return proc.stdout
 
 
-def patch_id_from_commit(repo_dir: Path, commit: str, ignore_whitespace: bool) -> str:
+def extract_patch_content(repo_dir: Path, commit: str) -> str:
     """
-    Compute a stable patch-id for the commit diff.
-    - exact: git show <commit> --pretty=format: --no-color
-    - near:  git show -w <commit> --pretty=format: --no-color   (ignore whitespace)
-    Then pipe into: git patch-id --stable
+    Requirement-aligned:
+      - Get patch content using git show (diff only; no commit metadata)
     """
-    show_args = ["show", commit, "--pretty=format:", "--no-color"]
-    if ignore_whitespace:
-        show_args.insert(1, "-w")
-
-    diff = run_git(repo_dir, show_args)
-    if not diff.strip():
-        return f"EMPTY:{commit}"
-
-    proc = subprocess.run(
-        ["git", "patch-id", "--stable"],
-        cwd=str(repo_dir),
-        input=diff,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        check=False,
-    )
-    if proc.returncode != 0:
-        raise RuntimeError(proc.stderr.strip() or "git patch-id failed")
-
-    # "<patchid> <commit>"
-    line = proc.stdout.strip().splitlines()[0]
-    return line.split()[0]
+    # --pretty=format: removes commit metadata; this yields just the diff
+    return run_git(repo_dir, ["show", commit, "--pretty=format:", "--no-color"])
 
 
-def safe_version_tuple(v: Optional[str]) -> Tuple[int, Version]:
-    if not v:
-        return (0, Version("0"))
-    try:
-        return (1, Version(v))
-    except InvalidVersion:
-        # salvage "4.2.x"
-        vx = re.sub(r"\.x\b", ".0", v)
-        try:
-            return (1, Version(vx))
-        except InvalidVersion:
-            return (0, Version("0"))
-
-
-def choose_stable_commit(entry: Dict[str, Any]) -> Optional[str]:
+def compare_patches(repo_dir: Path, stable_commit: str, other_commit: str) -> bool:
     """
-    Stable = affected_versions item with highest version_not_affected (preferred),
-    else highest version. Within that, first patch commit.
+    Requirement-aligned:
+      - Normalize patch by ignoring commit metadata (handled by --pretty=format:)
+      - Compare "identical patch content" using git patch-id --stable
+        (this is the standard way to detect cherry-picks / identical diffs)
+    Returns:
+      True if identical to stable, else False
+    """
+    stable_diff = extract_patch_content(repo_dir, stable_commit).strip()
+    other_diff = extract_patch_content(repo_dir, other_commit).strip()
+
+    if not stable_diff or not other_diff:
+        return False
+
+    stable_pid = run_git(repo_dir, ["patch-id", "--stable"], stdin=stable_diff).split()[0]
+    other_pid = run_git(repo_dir, ["patch-id", "--stable"], stdin=other_diff).split()[0]
+    return stable_pid == other_pid
+
+
+# -----------------------------
+# Stable patch selection
+# -----------------------------
+def series_key(series: str) -> Tuple[int, int]:
+    """
+    Turns "6.0.x" into (6, 0) for comparisons.
+    Unknown/non-series sorts lowest.
+    """
+    m = SEMVER_SERIES_RE.match((series or "").strip())
+    if not m:
+        return (-1, -1)
+    return (int(m.group(1)), int(m.group(2)))
+
+
+def choose_stable_patch_commit(entry: Dict[str, Any]) -> Optional[str]:
+    """
+    Requirement: stable/main patch = usually highest version number bucket.
+    We use max(series_key(version)) and take the first patch commit inside it.
     """
     avs = entry.get("affected_versions") or []
     if not isinstance(avs, list) or not avs:
         return None
 
-    def key(av: Dict[str, Any]) -> Tuple[Tuple[int, Version], Tuple[int, Version]]:
-        return (safe_version_tuple(av.get("version_not_affected")), safe_version_tuple(av.get("version")))
-
-    best = max((av for av in avs if isinstance(av, dict)), key=key, default=None)
-    if not best:
+    # pick the affected_versions bucket with the highest version series
+    best_av = max(
+        (av for av in avs if isinstance(av, dict)),
+        key=lambda av: series_key(av.get("version", "")),
+        default=None,
+    )
+    if not best_av:
         return None
-    patches = best.get("patches") or []
+
+    patches = best_av.get("patches") or []
     if not isinstance(patches, list) or not patches:
         return None
-    first = patches[0] if isinstance(patches[0], dict) else None
-    if not first:
+
+    first = patches[0]
+    if not isinstance(first, dict):
         return None
     return first.get("commit")
 
 
-def ensure_bool_fields(data: List[Dict[str, Any]]) -> None:
-    for entry in data:
-        for av in entry.get("affected_versions", []) or []:
-            for p in av.get("patches", []) or []:
-                v = p.get("same_as_stable", False)
-                if isinstance(v, str):
-                    p["same_as_stable"] = v.strip().lower() == "true"
-                elif v is None:
-                    p["same_as_stable"] = False
-                else:
-                    p["same_as_stable"] = bool(v)
-
-
+# -----------------------------
+# Main
+# -----------------------------
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Research-grade patch equivalence for Django CVE fixes")
-    ap.add_argument("--data", default="data.json", help="Path to data.json")
-    ap.add_argument("--repo", default="repositories/django", help="Path to django git repo")
-    ap.add_argument("--log", default="patch_compare.log.jsonl", help="Log file path")
-    ap.add_argument("--manifest", default="run_manifest_patch_compare.json", help="Run manifest path")
-    ap.add_argument("--verbose", action="store_true", help="Verbose console logs")
+    ap = argparse.ArgumentParser(
+        description="Compare Django security patch commits to the stable/main patch per CVE and update same_as_stable."
+    )
+    ap.add_argument("--data", default="data.json", help="Path to data.json (default: data.json)")
+    ap.add_argument("--repo", default="repositories/django", help="Path to django git repo (default: repositories/django)")
     args = ap.parse_args()
 
     data_path = Path(args.data)
     repo_dir = Path(args.repo)
-    log_path = Path(args.log)
-    manifest_path = Path(args.manifest)
 
-    logger = setup_logger(log_path, args.verbose)
+    # sanity: repo is a git repo
+    run_git(repo_dir, ["rev-parse", "--git-dir"])
 
-    manifest: Dict[str, Any] = {
-        "tool": "patch_comparison.py",
-        "started_at": utc_now_iso(),
-        "config": {"data": str(data_path), "repo": str(repo_dir)},
-        "stats": {"cves_total": 0, "patches_total": 0, "exact_matches": 0, "near_matches": 0, "different": 0, "errors": 0},
-        "per_cve": [],
-        "errors": [],
-    }
+    data = read_json(data_path)
+    if not isinstance(data, list):
+        raise SystemExit("[error] data.json must be a top-level JSON list")
 
-    try:
-        # sanity: repo exists and is git
-        run_git(repo_dir, ["rev-parse", "--git-dir"])
+    for entry in tqdm(data, desc="CVEs", unit="cve"):
+        stable_commit = choose_stable_patch_commit(entry)
+        if not stable_commit:
+            # nothing to do for this CVE
+            continue
 
-        data = read_json(data_path)
-        if not isinstance(data, list):
-            raise RuntimeError("data.json must be a top-level JSON list")
-
-        ensure_bool_fields(data)
-
-        manifest["stats"]["cves_total"] = len(data)
-
-        for entry in tqdm(data, desc="CVEs", unit="cve"):
-            cve_id = entry.get("cve_id", "UNKNOWN")
-            stable_commit = choose_stable_commit(entry)
-            if not stable_commit:
-                manifest["stats"]["errors"] += 1
-                manifest["errors"].append({"cve_id": cve_id, "error": "No stable commit found"})
-                logger.warning("no_stable_commit", extra={"event": "no_stable_commit", "cve_id": cve_id})
+        avs = entry.get("affected_versions") or []
+        for av in avs:
+            if not isinstance(av, dict):
                 continue
-
-            try:
-                stable_pid_exact = patch_id_from_commit(repo_dir, stable_commit, ignore_whitespace=False)
-                stable_pid_near = patch_id_from_commit(repo_dir, stable_commit, ignore_whitespace=True)
-            except Exception as e:
-                manifest["stats"]["errors"] += 1
-                manifest["errors"].append({"cve_id": cve_id, "error": f"Stable patch-id failed: {e}"})
-                logger.error("stable_patch_id_failed", extra={"event": "stable_patch_id_failed", "cve_id": cve_id, "commit": stable_commit, "detail": str(e)})
-                continue
-
-            avs = entry.get("affected_versions") or []
-            patches_total = sum(len((av.get("patches") or [])) for av in avs if isinstance(av, dict))
-            manifest["stats"]["patches_total"] += patches_total
-
-            cve_exact = 0
-            cve_near = 0
-            cve_diff = 0
-            cve_err = 0
-
-            for av in avs:
-                if not isinstance(av, dict):
+            for p in av.get("patches") or []:
+                if not isinstance(p, dict):
                     continue
-                for p in av.get("patches") or []:
-                    if not isinstance(p, dict):
-                        continue
-                    commit = p.get("commit")
-                    if not commit:
-                        continue
+                commit = p.get("commit")
+                if not commit:
+                    continue
 
-                    try:
-                        pid_exact = patch_id_from_commit(repo_dir, commit, ignore_whitespace=False)
-                        if pid_exact == stable_pid_exact:
-                            # exact match => same_as_stable = True
-                            p["same_as_stable"] = True
-                            cve_exact += 1
-                            continue
+                # identical to stable => true; else false
+                try:
+                    p["same_as_stable"] = compare_patches(repo_dir, stable_commit, commit)
+                except Exception:
+                    # if git can't resolve a commit, treat as not identical (and keep running)
+                    p["same_as_stable"] = False
 
-                        # near tier: ignore whitespace
-                        pid_near = patch_id_from_commit(repo_dir, commit, ignore_whitespace=True)
-                        if pid_near == stable_pid_near:
-                            # schema remains boolean; near match is reported in manifest only
-                            p["same_as_stable"] = False
-                            cve_near += 1
-                        else:
-                            p["same_as_stable"] = False
-                            cve_diff += 1
-
-                    except Exception as e:
-                        cve_err += 1
-                        manifest["stats"]["errors"] += 1
-                        manifest["errors"].append({"cve_id": cve_id, "commit": commit, "error": str(e)})
-                        logger.warning("patch_compare_failed", extra={"event": "patch_compare_failed", "cve_id": cve_id, "commit": commit, "detail": str(e)})
-
-            manifest["stats"]["exact_matches"] += cve_exact
-            manifest["stats"]["near_matches"] += cve_near
-            manifest["stats"]["different"] += cve_diff
-
-            manifest["per_cve"].append({
-                "cve_id": cve_id,
-                "stable_commit": stable_commit,
-                "counts": {"exact": cve_exact, "near": cve_near, "different": cve_diff, "errors": cve_err},
-            })
-
-        # Write updated dataset
-        write_json(data_path, data)
-
-        manifest["finished_at"] = utc_now_iso()
-        write_json(manifest_path, manifest)
-
-        logger.info("run_complete", extra={"event": "run_complete"})
-        return 0
-
-    except Exception as e:
-        manifest["finished_at"] = utc_now_iso()
-        manifest["stats"]["errors"] += 1
-        manifest["errors"].append({"error": str(e)})
-        write_json(manifest_path, manifest)
-        logger.error("fatal", extra={"event": "fatal", "detail": str(e)})
-        return 2
+    write_json(data_path, data)
+    print(f"[ok] Updated same_as_stable in {data_path}")
+    return 0
 
 
 if __name__ == "__main__":
